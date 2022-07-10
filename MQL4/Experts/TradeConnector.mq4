@@ -64,13 +64,16 @@ void OnDeinit(const int reason)
 void OnTick()
   {
 //---
-// get current timestamp
-// check all current trades
-// check last 10 history trades
-// get last trade on timestamp
-// collect new trades or updates on current trades
-// send updates to api
-// save to db
+   // get current timestamp
+   // check all current trades
+   // check last 10 history trades
+   // get last trade on timestamp
+   // collect new trades or updates on current trades
+   // send updates to api
+   // save to db
+    getCurrentTrades();
+    getHistoryTrades();
+    collectUpdatesOfTrades();
   }
 //+------------------------------------------------------------------+
 
@@ -83,18 +86,18 @@ void getCurrentTrades() {
      {
       ArrayResize(currentTrades,OrdersTotal());
       if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)) {
-            currentTrades[i][0]=OrderTicket();
-            currentTrades[i][1]=OrderOpenTime();
-            currentTrades[i][2]=OrderCloseTime();
-            currentTrades[i][3]=OrderOpenPrice();
-            currentTrades[i][4]=OrderCloseTime();
-            currentTrades[i][5]=OrderLots();
-            currentTrades[i][6]=OrderType();
+            currentTrades[i][0]=IntegerToString(OrderTicket());
+            currentTrades[i][1]=TimeToStr(OrderOpenTime(),TIME_SECONDS);
+            currentTrades[i][2]=TimeToStr(OrderCloseTime(),TIME_SECONDS);
+            currentTrades[i][3]=DoubleToString(OrderOpenPrice(),5);
+            currentTrades[i][4]=DoubleToString(OrderCloseTime(),5);
+            currentTrades[i][5]=DoubleToString(OrderLots(),5);
+            currentTrades[i][6]=IntegerToString(OrderType());
             currentTrades[i][7]=OrderSymbol();
-            currentTrades[i][8]=OrderStopLoss();
-            currentTrades[i][9]=OrderTakeProfit();
-            currentTrades[i][10]=OrderCommission();
-            currentTrades[i][11]=OrderSwap();
+            currentTrades[i][8]=DoubleToString(OrderStopLoss(),5);
+            currentTrades[i][9]=DoubleToString(OrderTakeProfit(),5);
+            currentTrades[i][10]=DoubleToString(OrderCommission(),5);
+            currentTrades[i][11]=DoubleToString(OrderSwap(),5);
             currentTrades[i][12]=OrderComment();
          }
       }
@@ -105,18 +108,18 @@ void getHistoryTrades() {
      {
       ArrayResize(historyTrades,OrdersHistoryTotal());
       if(OrderSelect(i,SELECT_BY_POS,MODE_HISTORY)) {
-            historyTrades[i][0]=OrderTicket();
-            historyTrades[i][1]=OrderOpenTime();
-            historyTrades[i][2]=OrderCloseTime();
-            historyTrades[i][3]=OrderOpenPrice();
-            historyTrades[i][4]=OrderCloseTime();
-            historyTrades[i][5]=OrderLots();
-            historyTrades[i][6]=OrderType();
+            historyTrades[i][0]=IntegerToString(OrderTicket());
+            historyTrades[i][1]=TimeToStr(OrderOpenTime(),TIME_SECONDS);
+            historyTrades[i][2]=TimeToStr(OrderCloseTime(),TIME_SECONDS);
+            historyTrades[i][3]=DoubleToString(OrderOpenPrice(),5);
+            historyTrades[i][4]=DoubleToString(OrderCloseTime(),5);
+            historyTrades[i][5]=DoubleToString(OrderLots(),5);
+            historyTrades[i][6]=IntegerToString(OrderType());
             historyTrades[i][7]=OrderSymbol();
-            historyTrades[i][8]=OrderStopLoss();
-            historyTrades[i][9]=OrderTakeProfit();
-            historyTrades[i][10]=OrderCommission();
-            historyTrades[i][11]=OrderSwap();
+            historyTrades[i][8]=DoubleToString(OrderStopLoss(),5);
+            historyTrades[i][9]=DoubleToString(OrderTakeProfit(),5);
+            historyTrades[i][10]=DoubleToString(OrderCommission(),5);
+            historyTrades[i][11]=DoubleToString(OrderSwap(),5);
             historyTrades[i][12]=OrderComment();
          }
       }
@@ -135,7 +138,7 @@ void collectUpdatesOfTrades() {
    // which are not in the list of current trades,
    // but in the list of current db trades
    
-    string Query,Query_NOT,tmp;
+    string Query,Query_NOT,tmp,tmp_history;
     int    i,Cursor,Cursor_NOT,Rows;
     
     int      vId;
@@ -145,6 +148,11 @@ void collectUpdatesOfTrades() {
       StringAdd(tmp,"'"+currentTrades[i][0]+"',");
     }
     tmp = StringSubstr(tmp,0,StringLen(tmp)-1);
+    for(i=0;i<ArrayRange(historyTrades,0);i++) {
+      StringAdd(tmp_history,"'"+historyTrades[i][0]+"',");
+    }
+    tmp_history = StringSubstr(tmp_history,0,StringLen(tmp_history)-1);
+    Print("str_len_tmp="+IntegerToString(StringLen(tmp)));
     if(StringLen(tmp)>0){
        Query = "SELECT tradeId FROM orders WHERE tradeId IN ("+tmp+")";
        Print("Query="+Query);
@@ -156,6 +164,15 @@ void collectUpdatesOfTrades() {
        if (Cursor >= 0)
        {
         Rows = MySqlCursorRows(Cursor);
+        if(ArrayRange(currentTrades,0)>0){
+           if(Rows==0) {
+            //add all trades to db
+           } else if (Rows<ArrayRange(currentTrades,0)) {
+            // add only new trads to db
+           } else {
+            // update existing lines in db
+           }
+        }
         Print (Rows, " row(s) selected.");
         Print ("Rows affected: ", MySqlRowsAffected(DB)); // just to compare with MySqlCursorRows
         
