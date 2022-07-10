@@ -72,6 +72,9 @@ int OnInit()
     {
      Print ("Cursor opening failed. Error: ", MySqlErrorDescription);
     }
+    getCurrentTrades();
+    Print("+++");
+    getHistoryTrades();
     
     MySqlDisconnect(DB);
    Print ("Disconnected. Script done!");
@@ -107,11 +110,21 @@ datetime currTimestamp() {
 }
 
 void getCurrentTrades() {
-
+ for(int i=OrdersTotal(); i>=0; i--)
+     {
+      if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)) {
+            Print("OrderNumber="+OrderTicket()+";OPrice="+OrderOpenPrice()+";OType="+OrderType()+";OTime="+OrderOpenTime()+";Symbol="+OrderSymbol()+";Lots="+OrderLots());
+         }
+      }
 }
 
 void getHistoryTrades() {
-
+   for(int i=OrdersHistoryTotal(); i>=0; i--)
+     {
+      if(OrderSelect(i,SELECT_BY_POS,MODE_HISTORY)) {
+            Print("OrderNumber="+OrderTicket()+";OPrice="+OrderOpenPrice()+";OType="+OrderType()+";OTime="+OrderOpenTime()+";Symbol="+OrderSymbol()+";Lots="+OrderLots());
+         }
+      }
 }
 
 void collectUpdatesOfTrades() {
