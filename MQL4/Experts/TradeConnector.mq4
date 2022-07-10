@@ -10,18 +10,19 @@
 #include <MQLMySQL.mqh>
 
 string INI;
+string Host, User, Password, Database, Socket; // database credentials
+int Port,ClientFlag;
+int DB; // database identifier
+//tradeId,openTime,closeTime,openPrice,closePrice,lots,orderType,symbol,sl,tp,commision,swap,comment
+string changedTrades[][12];
+string currentTrades[][12];
+string historyTrades[][12];
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
   {
 //---
-    string Host, User, Password, Database, Socket; // database credentials
-    int Port,ClientFlag;
-    int DB; // database identifier
-    
-    Print (MySqlVersion());
-    Print(TerminalPath());
    
     INI = TerminalPath()+"\\MQL4\\Files\\MyConnection.ini";
     
@@ -43,41 +44,6 @@ int OnInit()
     
     if (DB == -1) { Print ("Connection failed! Error: "+MySqlErrorDescription); } else { Print ("Connected! DBID#",DB);}
     
-    string Query;
-    int    i,Cursor,Rows;
-    
-    int      vId;
-    string   vCode;
-    datetime vStartTime;
-    Query = "SELECT * FROM user";
-   
-    Cursor = MySqlCursorOpen(DB, Query);
-    if (Cursor >= 0)
-    {
-     Rows = MySqlCursorRows(Cursor);
-     Print (Rows, " row(s) selected.");
-     Print ("Rows affected: ", MySqlRowsAffected(DB)); // just to compare with MySqlCursorRows
-
-     for (i=0; i<Rows; i++)
-         if (MySqlCursorFetchRow(Cursor))
-            {
-             vId = MySqlGetFieldAsInt(Cursor, 0); // id
-             vCode = MySqlGetFieldAsString(Cursor, 1); // code
-             vStartTime = MySqlGetFieldAsDatetime(Cursor, 2); // start_time
-             Print ("ROW[",i,"]: id = ", vId, ", code = ", vCode, ", start_time = ", TimeToStr(vStartTime, TIME_DATE|TIME_SECONDS));
-            }
-     MySqlCursorClose(Cursor); // NEVER FORGET TO CLOSE CURSOR !!!
-    }
-      else
-    {
-     Print ("Cursor opening failed. Error: ", MySqlErrorDescription);
-    }
-    getCurrentTrades();
-    Print("+++");
-    getHistoryTrades();
-    
-    MySqlDisconnect(DB);
-   Print ("Disconnected. Script done!");
 //---
    return(INIT_SUCCEEDED);
   }
@@ -87,7 +53,8 @@ int OnInit()
 void OnDeinit(const int reason)
   {
 //---
-    
+   MySqlDisconnect(DB);
+   Print ("Disconnected. Script done!");
   }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
@@ -113,7 +80,19 @@ void getCurrentTrades() {
  for(int i=OrdersTotal(); i>=0; i--)
      {
       if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)) {
-            Print("OrderNumber="+OrderTicket()+";OPrice="+OrderOpenPrice()+";OType="+OrderType()+";OTime="+OrderOpenTime()+";Symbol="+OrderSymbol()+";Lots="+OrderLots());
+            currentTrades[i][0]=OrderTicket();
+            currentTrades[i][1]=OrderOpenTime();
+            currentTrades[i][2]=OrderCloseTime();
+            currentTrades[i][3]=OrderOpenPrice();
+            currentTrades[i][4]=OrderCloseTime();
+            currentTrades[i][5]=OrderLots();
+            currentTrades[i][6]=OrderType();
+            currentTrades[i][7]=OrderSymbol();
+            currentTrades[i][8]=OrderStopLoss();
+            currentTrades[i][9]=OrderTakeProfit();
+            currentTrades[i][10]=OrderCommission();
+            currentTrades[i][11]=OrderSwap();
+            currentTrades[i][12]=OrderComment();
          }
       }
 }
@@ -122,7 +101,19 @@ void getHistoryTrades() {
    for(int i=OrdersHistoryTotal(); i>=0; i--)
      {
       if(OrderSelect(i,SELECT_BY_POS,MODE_HISTORY)) {
-            Print("OrderNumber="+OrderTicket()+";OPrice="+OrderOpenPrice()+";OType="+OrderType()+";OTime="+OrderOpenTime()+";Symbol="+OrderSymbol()+";Lots="+OrderLots());
+            historyTrades[i][0]=OrderTicket();
+            historyTrades[i][1]=OrderOpenTime();
+            historyTrades[i][2]=OrderCloseTime();
+            historyTrades[i][3]=OrderOpenPrice();
+            historyTrades[i][4]=OrderCloseTime();
+            historyTrades[i][5]=OrderLots();
+            historyTrades[i][6]=OrderType();
+            historyTrades[i][7]=OrderSymbol();
+            historyTrades[i][8]=OrderStopLoss();
+            historyTrades[i][9]=OrderTakeProfit();
+            historyTrades[i][10]=OrderCommission();
+            historyTrades[i][11]=OrderSwap();
+            historyTrades[i][12]=OrderComment();
          }
       }
 }
@@ -139,6 +130,43 @@ void collectUpdatesOfTrades() {
    // get history trades and find trades,
    // which are not in the list of current trades,
    // but in the list of current db trades
+   
+    string Query;
+    int    i,Cursor,Rows;
+    
+    int      vId;
+    string   vCode;
+    datetime vStartTime;
+    Query = "SELECT id FROM trades WHERE id IN ("+i+")";
+   
+    Cursor = MySqlCursorOpen(DB, Query);
+    if (Cursor >= 0)
+    {
+     Rows = MySqlCursorRows(Cursor);
+     Print (Rows, " row(s) selected.");
+     Print ("Rows affected: ", MySqlRowsAffected(DB)); // just to compare with MySqlCursorRows
+     
+     if(Rows<OrdersTotal()) {
+      //add new trades to db and to array
+      for (i=0; i<Rows; i++)
+         if (MySqlCursorFetchRow(Cursor))
+            {
+             
+             vId = MySqlGetFieldAsInt(Cursor, 0); // id
+             vCode = MySqlGetFieldAsString(Cursor, 1); // code
+             vStartTime = MySqlGetFieldAsDatetime(Cursor, 2); // start_time
+             Print ("ROW[",i,"]: id = ", vId, ", code = ", vCode, ", start_time = ", TimeToStr(vStartTime, TIME_DATE|TIME_SECONDS));
+            }
+     }
+
+     
+     MySqlCursorClose(Cursor); // NEVER FORGET TO CLOSE CURSOR !!!
+    }
+      else
+    {
+     Print ("Cursor opening failed. Error: ", MySqlErrorDescription);
+    }
+   
 }
 
 void sendUpdatesToAPI() {
