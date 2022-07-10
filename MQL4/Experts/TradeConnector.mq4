@@ -14,16 +14,15 @@ string Host, User, Password, Database, Socket; // database credentials
 int Port,ClientFlag;
 int DB; // database identifier
 //tradeId,openTime,closeTime,openPrice,closePrice,lots,orderType,symbol,sl,tp,commision,swap,comment
-string changedTrades[][12];
-string currentTrades[][12];
-string historyTrades[][12];
+string changedTrades[][13];
+string currentTrades[][13];
+string historyTrades[][13];
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
   {
 //---
-   
     INI = TerminalPath()+"\\MQL4\\Files\\MyConnection.ini";
     
     // reading database credentials from INI file
@@ -44,6 +43,9 @@ int OnInit()
     
     if (DB == -1) { Print ("Connection failed! Error: "+MySqlErrorDescription); } else { Print ("Connected! DBID#",DB);}
     
+    getCurrentTrades();
+    getHistoryTrades();
+    collectUpdatesOfTrades();
 //---
    return(INIT_SUCCEEDED);
   }
@@ -79,6 +81,7 @@ datetime currTimestamp() {
 void getCurrentTrades() {
  for(int i=OrdersTotal(); i>=0; i--)
      {
+      ArrayResize(currentTrades,OrdersTotal());
       if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)) {
             currentTrades[i][0]=OrderTicket();
             currentTrades[i][1]=OrderOpenTime();
@@ -100,6 +103,7 @@ void getCurrentTrades() {
 void getHistoryTrades() {
    for(int i=OrdersHistoryTotal(); i>=0; i--)
      {
+      ArrayResize(historyTrades,OrdersHistoryTotal());
       if(OrderSelect(i,SELECT_BY_POS,MODE_HISTORY)) {
             historyTrades[i][0]=OrderTicket();
             historyTrades[i][1]=OrderOpenTime();
@@ -131,40 +135,52 @@ void collectUpdatesOfTrades() {
    // which are not in the list of current trades,
    // but in the list of current db trades
    
-    string Query;
-    int    i,Cursor,Rows;
+    string Query,Query_NOT,tmp;
+    int    i,Cursor,Cursor_NOT,Rows;
     
     int      vId;
     string   vCode;
     datetime vStartTime;
-    Query = "SELECT id FROM trades WHERE id IN ("+i+")";
-   
-    Cursor = MySqlCursorOpen(DB, Query);
-    if (Cursor >= 0)
-    {
-     Rows = MySqlCursorRows(Cursor);
-     Print (Rows, " row(s) selected.");
-     Print ("Rows affected: ", MySqlRowsAffected(DB)); // just to compare with MySqlCursorRows
-     
-     if(Rows<OrdersTotal()) {
-      //add new trades to db and to array
-      for (i=0; i<Rows; i++)
-         if (MySqlCursorFetchRow(Cursor))
-            {
-             
-             vId = MySqlGetFieldAsInt(Cursor, 0); // id
-             vCode = MySqlGetFieldAsString(Cursor, 1); // code
-             vStartTime = MySqlGetFieldAsDatetime(Cursor, 2); // start_time
-             Print ("ROW[",i,"]: id = ", vId, ", code = ", vCode, ", start_time = ", TimeToStr(vStartTime, TIME_DATE|TIME_SECONDS));
-            }
-     }
-
-     
-     MySqlCursorClose(Cursor); // NEVER FORGET TO CLOSE CURSOR !!!
+    for(i=0;i<ArrayRange(currentTrades,0);i++) {
+      StringAdd(tmp,"'"+currentTrades[i][0]+"',");
     }
-      else
-    {
-     Print ("Cursor opening failed. Error: ", MySqlErrorDescription);
+    tmp = StringSubstr(tmp,0,StringLen(tmp)-1);
+    if(StringLen(tmp)>0){
+       Query = "SELECT tradeId FROM orders WHERE tradeId IN ("+tmp+")";
+       Print("Query="+Query);
+       Query_NOT = "SELECT tradeId FROM orders WHERE tradeId NOT IN ("+tmp+")";
+       Print("Query_Not="+Query_NOT);
+      
+       Cursor = MySqlCursorOpen(DB, Query);
+       Cursor_NOT = MySqlCursorOpen(DB, Query_NOT);
+       if (Cursor >= 0)
+       {
+        Rows = MySqlCursorRows(Cursor);
+        Print (Rows, " row(s) selected.");
+        Print ("Rows affected: ", MySqlRowsAffected(DB)); // just to compare with MySqlCursorRows
+        
+        if(Rows<OrdersTotal()) {
+         //add new trades to db and to array
+         for (i=0; i<Rows; i++)
+            if (MySqlCursorFetchRow(Cursor))
+               {
+                
+                vId = MySqlGetFieldAsInt(Cursor, 0); // id
+                vCode = MySqlGetFieldAsString(Cursor, 1); // code
+                vStartTime = MySqlGetFieldAsDatetime(Cursor, 2); // start_time
+                Print ("ROW[",i,"]: id = ", vId, ", code = ", vCode, ", start_time = ", TimeToStr(vStartTime, TIME_DATE|TIME_SECONDS));
+               }
+        }  
+        
+        MySqlCursorClose(Cursor); // NEVER FORGET TO CLOSE CURSOR !!!
+        MySqlCursorClose(Cursor_NOT);
+       }
+         else
+       {
+        Print ("Cursor opening failed. Error: ", MySqlErrorDescription);
+       }
+    }else{
+      Print("No current trades found!");
     }
    
 }
