@@ -128,13 +128,28 @@ void getHistoryTrades() {
 }
 
 void collectUpdatesOfTrades() {
-
+   // get current trades array
+   // get amount of trades from db
+   // if amount of trades form db is
+   // smaller than amount of current trades
+   // then add new trade to db and to array
+   // of the changed tickets
+   // if amount of trades from db is
+   // bigger than amount of current trades
+   // get history trades and find trades,
+   // which are not in the list of current trades,
+   // but in the list of current db trades
 }
 
 void sendUpdatesToAPI() {
-
+   // get array with changed tickets
+   // build update statements
+   // send update statements to api
 }
 
 void saveUpdatesToDB() {
-
+   // get array with changed tickets
+   // build update sql
+   // save to db
+   // write response to log
 }
